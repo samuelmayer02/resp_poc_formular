@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<! start webserver using: python3 -m http.server 8080>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Patientenformular</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
+
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 40px;
+    }
+    form {
+      max-width: 400px;
+      font-size: 1.2rem;
+    }
+    label {
+      display: block;
+      margin-top: 15px;
+      font-weight: bold;
+    }
+    input, select, textarea {
+      width: 100%;
+      padding: 10px;
+      font-size: 1.1rem;
+      margin-top: 5px;
+      border-radius: 8px;
+      border: 1px solid #aaa;
+    }
+    input:read-only {
+      background-color: #f0f0f0;
+    }
+    .button-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    button {
+      padding: 12px 20px;
+      font-size: 1.1rem;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      background-color: #007aff;
+      color: white;
+      flex: 1;
+    }
+    button.secondary {
+      background-color: #6c757d;
+    }
+    #qrcode {
+      width: 350px;
+      height: 350px;
+      margin-top: 20px;
+    }
+    .error {
+      border-color: red !important;
+    }
+    .error-message {
+      color: red;
+      font-size: 0.8rem;
+      margin-top: 5px;
+      display: none;
+    }
+    .consent {
+      margin-top: 20px;
+      font-size: 0.95rem;
+    }
+  </style>
+</head>
+<body>
+  <form id="patientForm">
+    <h2>Patientendaten</h2>
+
+    <!-- Szenario -->
+    <label>Szenario</label>
+    <select id="scenario" required>
+      <option value="">Bitte wählen</option>
+      <option value="Ruhe">Ruhe</option>
+      <option value="Leichte Aktivität">Leichte Aktivität</option>
+      <option value="Hohe Aktivität">Hohe Aktivität</option>
+    </select>
+    <div class="error-message">Bitte wählen Sie ein Szenario</div>
+
+    <!-- Alter -->
+    <label>Alter</label>
+    <input type="number" id="age" placeholder="Alter eingeben" min="0" max="150" required>
+    <div class="error-message">Bitte geben Sie ein gültiges Alter ein (0-150)</div>
+
+    <!-- Geschlecht -->
+    <label>Geschlecht</label>
+    <select id="gender" required>
+      <option value="">Bitte wählen</option>
+      <option value="Männlich">Männlich</option>
+      <option value="Weiblich">Weiblich</option>
+      <option value="Divers">Divers</option>
+    </select>
+    <div class="error-message">Bitte wählen Sie ein Geschlecht</div>
+
+    <!-- Größe -->
+    <label>Größe (cm)</label>
+    <input type="number" id="height" placeholder="Größe in cm eingeben" min="1" required>
+    <div class="error-message">Bitte geben Sie eine gültige Größe ein</div>
+
+    <!-- Gewicht -->
+    <label>Gewicht (kg)</label>
+    <input type="number" id="weight" placeholder="Gewicht in kg eingeben" min="1" required>
+    <div class="error-message">Bitte geben Sie ein gültiges Gewicht ein</div>
+
+    <!-- BMI -->
+    <label>BMI</label>
+    <input type="number" id="bmi" step="0.1" readonly>
+
+    <!-- Kleidung -->
+    <label>Kleidung</label>
+    <select id="clothing" required>
+      <option value="">Bitte wählen</option>
+      <option value="T-Shirt">T-Shirt</option>
+      <option value="Dünner Pullover">Dünner Pullover</option>
+      <option value="Dicker Pullover">Dicker Pullover</option>
+      <option value="Weste">Weste</option>
+      <option value="Mehrere Schichten">Mehrere Schichten</option>
+    </select>
+    <div class="error-message">Bitte wählen Sie die Kleidung</div>
+
+    <!-- Einverständnis -->
+    <div class="consent">
+      <input type="checkbox" id="consentCheckbox">
+      <label for="consentCheckbox">
+        Ich stimme zu, dass meine **anonymisierten Daten** (Alter, Geschlecht, BMI, Kleidung, Messergebnisse) für die Weiterentwicklung der Atem- und Herzfrequenzmessung verwendet werden dürfen.
+      </label>
+    </div>
+
+    <!-- Buttons -->
+    <div class="button-group">
+      <button type="button" id="generateQRBtn" disabled>QR-Code generieren</button>
+      <button type="button" id="resetBtn" class="secondary">Reset</button>
+    </div>
+  </form>
+
+  <!-- QR-Code Anzeige -->
+  <div>
+    <h2>QR-Code</h2>
+    <div id="qrcode"></div>
+  </div>
+
+  <script>
+    const form = document.getElementById('patientForm');
+    const heightField = document.getElementById('height');
+    const weightField = document.getElementById('weight');
+    const bmiField = document.getElementById('bmi');
+    const qrcodeDiv = document.getElementById('qrcode');
+    const consentCheckbox = document.getElementById('consentCheckbox');
+    const generateQRBtn = document.getElementById('generateQRBtn');
+    let qr = new QRCode(qrcodeDiv, { width: 350, height: 350 });
+
+    // BMI berechnen
+    function calculateBMI() {
+      const weight = parseFloat(weightField.value);
+      const height = parseFloat(heightField.value);
+      if (!weight || !height) return "";
+      const heightInMeters = height / 100;
+      return (weight / (heightInMeters * heightInMeters)).toFixed(1);
+    }
+
+    function updateBMI() {
+      bmiField.value = calculateBMI();
+    }
+
+    function validateForm() {
+      const fields = ['age', 'gender', 'height', 'weight', 'clothing', 'scenario'];
+      let isValid = true;
+      fields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        const errorMessage = field.nextElementSibling;
+        if (!field.value) {
+          field.classList.add('error');
+          errorMessage.style.display = 'block';
+          isValid = false;
+        } else {
+          field.classList.remove('error');
+          errorMessage.style.display = 'none';
+        }
+      });
+      if (!consentCheckbox.checked) {
+        isValid = false;
+        alert('Bitte stimmen Sie der Datennutzung zu.');
+      }
+      return isValid;
+    }
+
+    function generateQRCode() {
+      if (!validateForm()) return;
+
+      updateBMI();
+
+      const data = {
+        scenario: document.getElementById('scenario').value,
+        alter: document.getElementById('age').value,
+        geschlecht: document.getElementById('gender').value,
+        groesse: heightField.value,
+        gewicht: weightField.value,
+        bmi: bmiField.value,
+        kleidung: document.getElementById('clothing').value,
+      };
+
+      qr.clear();
+      const compressed = LZString.compressToEncodedURIComponent(JSON.stringify(data));
+      qr.makeCode(compressed);
+    }
+
+    function resetForm() {
+      form.reset();
+      bmiField.value = "";
+      qr.clear();
+      generateQRBtn.disabled = true;
+      document.querySelectorAll('.error').forEach(el => el.classList.remove('error'));
+      document.querySelectorAll('.error-message').forEach(el => el.style.display = 'none');
+    }
+
+    // Event Listeners
+    heightField.addEventListener('input', updateBMI);
+    weightField.addEventListener('input', updateBMI);
+    generateQRBtn.addEventListener('click', generateQRCode);
+    document.getElementById('resetBtn').addEventListener('click', resetForm);
+
+    // Consent aktivieren
+    consentCheckbox.addEventListener('change', () => {
+      generateQRBtn.disabled = !consentCheckbox.checked;
+    });
+
+  </script>
+</body>
+</html>
