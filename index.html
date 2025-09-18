@@ -12,6 +12,33 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
 
   <style>
+    /* --- iOS/Chrome Overflow Fix für Flex-Rows --- */
+    .row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;        /* erlaubt Umbruch bei sehr engen Bildschirmen */
+    }
+
+    .row .field {
+      flex: 1 1 0;            /* wachsen, schrumpfen, Basis 0 */
+      min-width: 0;           /* WICHTIG: erlaubt flex-item, kleiner als Inhalt zu werden */
+    }
+
+    /* Sicherheit: Inputs/Select/Textarea nicht größer als ihr Container */
+    input, select, textarea {
+      min-width: 0;           /* verhindert min-content overflow auf iOS */
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+
+    /* Optional: kleinere Paddings auf sehr schmalen Geräten */
+    @media (max-width: 360px) {
+      .row { gap: 8px; }
+      input, select, textarea { padding: 8px 10px; font-size: .95rem; }
+      .button-group { flex-direction: column; }
+      .button-group button { width: 100%; }
+    }
+
     :root{
       --brand: #007aff;
       --muted: #6c757d;
