@@ -1,243 +1,511 @@
-<!DOCTYPE html>
+<!doctype html>
 <! start webserver using: python3 -m http.server 8080>
 <html lang="de">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#007aff" />
   <title>Patientenformular</title>
+
+  <!-- QR + LZ -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
 
   <style>
-    body {
-      font-family: sans-serif;
-      margin: 0;
-      padding: 20px;
-      display: flex;
-      flex-direction: row;
-      justify-content: center;
-      align-items: flex-start;
-      gap: 40px;
+    :root{
+      --brand: #007aff;
+      --muted: #6c757d;
+      --bg: #ffffff;
+      --card: #fbfbff;
+      --radius: 12px;
+      --gap: 16px;
+      --max-form-width: 520px;
+      --max-qrcode-size: 360px;
     }
+
+    /* Reset-ish */
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background: linear-gradient(180deg,#f6f8fb, #fff);
+      color:#111;
+      padding:16px;
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
+      gap:24px;
+    }
+
+    .container{
+      width:100%;
+      max-width:1200px;
+      display:flex;
+      gap:24px;
+      align-items:flex-start;
+      padding:16px;
+    }
+
+    /* two-column on wide screens, stacked on narrow */
+    .col {
+      background:var(--card);
+      border-radius:var(--radius);
+      box-shadow:0 6px 20px rgba(12,20,40,0.06);
+      padding:18px;
+      flex:1 1 0;
+    }
+
+    .left { max-width: var(--max-form-width); width:100%; }
+    .right { width:100%; display:flex; flex-direction:column; align-items:center; }
+
     form {
-      max-width: 400px;
-      font-size: 1.2rem;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
     }
-    label {
-      display: block;
-      margin-top: 15px;
-      font-weight: bold;
+
+    h1,h2{margin:0 0 8px 0; font-weight:700}
+    p.lead{margin:0 0 12px 0; color:var(--muted); font-size:0.95rem}
+
+    label{
+      display:block;
+      font-weight:600;
+      margin-bottom:6px;
+      font-size:0.95rem;
     }
-    input, select, textarea {
-      width: 100%;
-      padding: 10px;
-      font-size: 1.1rem;
-      margin-top: 5px;
-      border-radius: 8px;
-      border: 1px solid #aaa;
+
+    .field {
+      display:flex;
+      flex-direction:column;
+      gap:6px;
     }
-    input:read-only {
-      background-color: #f0f0f0;
+
+    input[type="number"],
+    input[type="text"],
+    select,
+    textarea {
+      font-size:1rem;
+      padding:10px 12px;
+      border:1px solid #d0d6df;
+      border-radius:10px;
+      background:#fff;
+      outline:none;
+      transition:box-shadow .12s, border-color .12s;
     }
-    .button-group {
-      display: flex;
-      gap: 10px;
-      margin-top: 20px;
+    input:focus, select:focus, textarea:focus {
+      box-shadow: 0 6px 18px rgba(0,122,255,0.08);
+      border-color: var(--brand);
     }
-    button {
-      padding: 12px 20px;
-      font-size: 1.1rem;
-      border-radius: 10px;
-      border: none;
-      cursor: pointer;
-      background-color: #007aff;
-      color: white;
-      flex: 1;
+
+    input[readonly], input[disabled] { background:#f5f7fb; color:#333; }
+
+    .row {
+      display:flex;
+      gap:12px;
     }
-    button.secondary {
-      background-color: #6c757d;
+    .row .field { flex:1 }
+
+    .consent {
+      display:flex;
+      gap:10px;
+      align-items:flex-start;
+      font-size:0.95rem;
+      color:#222;
     }
-    #qrcode {
-      width: 350px;
-      height: 350px;
-      margin-top: 20px;
+
+    .consent input { margin-top:4px }
+
+    .button-group{
+      display:flex;
+      gap:10px;
+      margin-top:6px;
     }
+
+    button{
+      padding:12px 14px;
+      border-radius:10px;
+      border:0;
+      cursor:pointer;
+      font-weight:600;
+      background:var(--brand);
+      color:white;
+      flex:1;
+      min-width:100px;
+    }
+    button.secondary{
+      background:var(--muted);
+    }
+    button:disabled{
+      opacity:0.55;
+      cursor:not-allowed;
+    }
+
     .error {
-      border-color: red !important;
+      border-color: #e04b4b !important;
     }
     .error-message {
-      color: red;
-      font-size: 0.8rem;
-      margin-top: 5px;
-      display: none;
+      color:#e04b4b;
+      font-size:0.85rem;
+      margin-top:4px;
+      display:none;
     }
-    .consent {
-      margin-top: 20px;
-      font-size: 0.95rem;
+
+    /* QR */
+    #qrcode{
+      width:100%;
+      max-width: var(--max-qrcode-size);
+      height:auto;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:12px;
+      border-radius:10px;
+      background:#fff;
+      border:1px solid #e9eef7;
+    }
+    .qr-wrap { display:flex; flex-direction:column; align-items:center; gap:8px; width:100% }
+
+    .meta {
+      font-size:0.9rem;
+      color:var(--muted);
+    }
+
+    /* small screens: stack columns vertically */
+    @media (max-width:900px){
+      .container{flex-direction:column; padding:12px}
+      .left { max-width:100% }
+      .right { order:2 }
+      .col { padding:14px }
+      body { padding:12px }
+    }
+
+    /* very small: smaller paddings */
+    @media (max-width:420px){
+      .container{gap:12px}
+      input,select,textarea { padding:10px }
+      button { padding:10px }
     }
   </style>
 </head>
 <body>
-  <form id="patientForm">
-    <h2>Patientendaten</h2>
+  <main class="container" role="main">
+    <section class="col left" aria-labelledby="form-title">
+      <h1 id="form-title">Patientenformular</h1>
+      <p class="lead">Bitte füllen Sie die Felder aus. Der QR-Code enthält nur anonymisierte Basisdaten.</p>
 
-    <!-- Szenario -->
-    <label>Szenario</label>
-    <select id="scenario" required>
-      <option value="">Bitte wählen</option>
-      <option value="Ruhe">Ruhe</option>
-      <option value="Leichte Aktivität">Leichte Aktivität</option>
-      <option value="Hohe Aktivität">Hohe Aktivität</option>
-    </select>
-    <div class="error-message">Bitte wählen Sie ein Szenario</div>
+      <form id="patientForm" novalidate>
+        <div class="field">
+          <label for="scenario">Szenario</label>
+          <select id="scenario" name="scenario" required aria-required="true" aria-describedby="scenario-error">
+            <option value="">Bitte wählen</option>
+            <option>Ruhe</option>
+            <option>Leichte Aktivität</option>
+            <option>Hohe Aktivität</option>
+          </select>
+          <div id="scenario-error" class="error-message">Bitte wählen Sie ein Szenario.</div>
+        </div>
 
-    <!-- Alter -->
-    <label>Alter</label>
-    <input type="number" id="age" placeholder="Alter eingeben" min="0" max="150" required>
-    <div class="error-message">Bitte geben Sie ein gültiges Alter ein (0-150)</div>
+        <div class="row">
+          <div class="field">
+            <label for="age">Alter</label>
+            <input id="age" name="age" type="number" inputmode="numeric" min="0" max="150" placeholder="Alter eingeben" required aria-required="true" aria-describedby="age-error">
+            <div id="age-error" class="error-message">Bitte geben Sie ein gültiges Alter ein (0–150).</div>
+          </div>
 
-    <!-- Geschlecht -->
-    <label>Geschlecht</label>
-    <select id="gender" required>
-      <option value="">Bitte wählen</option>
-      <option value="Männlich">Männlich</option>
-      <option value="Weiblich">Weiblich</option>
-      <option value="Divers">Divers</option>
-    </select>
-    <div class="error-message">Bitte wählen Sie ein Geschlecht</div>
+          <div class="field">
+            <label for="gender">Geschlecht</label>
+            <select id="gender" name="gender" required aria-required="true" aria-describedby="gender-error">
+              <option value="">Bitte wählen</option>
+              <option>Männlich</option>
+              <option>Weiblich</option>
+              <option>Divers</option>
+            </select>
+            <div id="gender-error" class="error-message">Bitte wählen Sie ein Geschlecht.</div>
+          </div>
+        </div>
 
-    <!-- Größe -->
-    <label>Größe (cm)</label>
-    <input type="number" id="height" placeholder="Größe in cm eingeben" min="1" required>
-    <div class="error-message">Bitte geben Sie eine gültige Größe ein</div>
+        <div class="row">
+          <div class="field">
+            <label for="height">Größe (cm)</label>
+            <input id="height" name="height" type="number" inputmode="numeric" min="1" placeholder="z. B. 172" required aria-required="true" aria-describedby="height-error">
+            <div id="height-error" class="error-message">Bitte geben Sie eine gültige Größe in cm ein.</div>
+          </div>
 
-    <!-- Gewicht -->
-    <label>Gewicht (kg)</label>
-    <input type="number" id="weight" placeholder="Gewicht in kg eingeben" min="1" required>
-    <div class="error-message">Bitte geben Sie ein gültiges Gewicht ein</div>
+          <div class="field">
+            <label for="weight">Gewicht (kg)</label>
+            <input id="weight" name="weight" type="number" inputmode="numeric" min="1" placeholder="z. B. 68" required aria-required="true" aria-describedby="weight-error">
+            <div id="weight-error" class="error-message">Bitte geben Sie ein gültiges Gewicht in kg ein.</div>
+          </div>
+        </div>
 
-    <!-- BMI -->
-    <label>BMI</label>
-    <input type="number" id="bmi" step="0.1" readonly>
+        <div class="row">
+          <div class="field">
+            <label for="bmi">BMI</label>
+            <input id="bmi" name="bmi" type="text" readonly aria-readonly="true" placeholder="wird berechnet">
+          </div>
 
-    <!-- Kleidung -->
-    <label>Kleidung</label>
-    <select id="clothing" required>
-      <option value="">Bitte wählen</option>
-      <option value="T-Shirt">T-Shirt</option>
-      <option value="Dünner Pullover">Dünner Pullover</option>
-      <option value="Dicker Pullover">Dicker Pullover</option>
-      <option value="Weste">Weste</option>
-      <option value="Mehrere Schichten">Mehrere Schichten</option>
-    </select>
-    <div class="error-message">Bitte wählen Sie die Kleidung</div>
+          <div class="field">
+            <label for="clothing">Kleidung</label>
+            <select id="clothing" name="clothing" required aria-required="true" aria-describedby="clothing-error">
+              <option value="">Bitte wählen</option>
+              <option>T-Shirt</option>
+              <option>Dünner Pullover</option>
+              <option>Dicker Pullover</option>
+              <option>Weste</option>
+              <option>Mehrere Schichten</option>
+            </select>
+            <div id="clothing-error" class="error-message">Bitte wählen Sie die Kleidung.</div>
+          </div>
+        </div>
 
-    <!-- Einverständnis -->
-    <div class="consent">
-      <input type="checkbox" id="consentCheckbox">
-      <label for="consentCheckbox">
-        Ich stimme zu, dass meine **anonymisierten Daten** (Alter, Geschlecht, BMI, Kleidung, Messergebnisse) für die Weiterentwicklung der Atem- und Herzfrequenzmessung verwendet werden dürfen.
-      </label>
-    </div>
+        <div class="field consent" role="group" aria-labelledby="consent-label">
+          <input id="consentCheckbox" type="checkbox" aria-describedby="consent-desc">
+          <div>
+            <div id="consent-label" style="font-weight:600">Einverständnis</div>
+            <div id="consent-desc" style="font-size:0.95rem; color:var(--muted)">
+              Ich stimme zu, dass meine <strong>anonymisierten</strong> Daten (Alter, Geschlecht, BMI, Kleidung, Messergebnisse) für die Weiterentwicklung der Atem- und Herzfrequenzmessung verwendet werden dürfen.
+            </div>
+          </div>
+        </div>
 
-    <!-- Buttons -->
-    <div class="button-group">
-      <button type="button" id="generateQRBtn" disabled>QR-Code generieren</button>
-      <button type="button" id="resetBtn" class="secondary">Reset</button>
-    </div>
-  </form>
+        <div class="button-group" role="group" aria-label="Aktionen">
+          <button id="generateQRBtn" type="button" disabled>QR-Code generieren</button>
+          <button id="resetBtn" type="button" class="secondary">Reset</button>
+        </div>
 
-  <!-- QR-Code Anzeige -->
-  <div>
-    <h2>QR-Code</h2>
-    <div id="qrcode"></div>
-  </div>
+        <div id="form-feedback" style="margin-top:8px; font-size:0.9rem; color:var(--muted)"></div>
+      </form>
+    </section>
+
+    <aside class="col right" aria-labelledby="qr-title">
+      <h2 id="qr-title">QR-Code</h2>
+      <p class="meta">Scanne den QR-Code, um die anonymisierten Basisdaten zu erhalten.</p>
+      <div id="qrcode" aria-hidden="false" role="img" class="qr-wrap" aria-label="QR-Code Container"></div>
+      <div id="qr-size-note" class="meta" style="margin-top:8px"></div>
+    </aside>
+  </main>
 
   <script>
+    // Elemente
     const form = document.getElementById('patientForm');
-    const heightField = document.getElementById('height');
-    const weightField = document.getElementById('weight');
-    const bmiField = document.getElementById('bmi');
-    const qrcodeDiv = document.getElementById('qrcode');
+    const fields = ['scenario','age','gender','height','weight','clothing'];
     const consentCheckbox = document.getElementById('consentCheckbox');
     const generateQRBtn = document.getElementById('generateQRBtn');
-    let qr = new QRCode(qrcodeDiv, { width: 350, height: 350 });
+    const resetBtn = document.getElementById('resetBtn');
+    const bmiField = document.getElementById('bmi');
+    const qrcodeContainer = document.getElementById('qrcode');
+    const feedback = document.getElementById('form-feedback');
+    const qrSizeNote = document.getElementById('qr-size-note');
 
-    // BMI berechnen
-    function calculateBMI() {
-      const weight = parseFloat(weightField.value);
-      const height = parseFloat(heightField.value);
-      if (!weight || !height) return "";
-      const heightInMeters = height / 100;
-      return (weight / (heightInMeters * heightInMeters)).toFixed(1);
+    // Utility: set error visibility
+    function showError(id, message) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.add('error');
+      const err = document.getElementById(id + '-error');
+      if (err) { err.textContent = message; err.style.display = 'block'; }
+    }
+    function clearError(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.remove('error');
+      const err = document.getElementById(id + '-error');
+      if (err) { err.style.display = 'none'; }
     }
 
-    function updateBMI() {
-      bmiField.value = calculateBMI();
+    // BMI: calculate with basic validation
+    function calculateBMIValue() {
+      const w = parseFloat(document.getElementById('weight').value);
+      const h = parseFloat(document.getElementById('height').value);
+      if (!w || !h || h <= 0) return '';
+      const m = h / 100;
+      const bmi = w / (m * m);
+      return isFinite(bmi) ? bmi.toFixed(1) : '';
     }
 
-    function validateForm() {
-      const fields = ['age', 'gender', 'height', 'weight', 'clothing', 'scenario'];
-      let isValid = true;
-      fields.forEach(fieldId => {
-        const field = document.getElementById(fieldId);
-        const errorMessage = field.nextElementSibling;
-        if (!field.value) {
-          field.classList.add('error');
-          errorMessage.style.display = 'block';
-          isValid = false;
-        } else {
-          field.classList.remove('error');
-          errorMessage.style.display = 'none';
-        }
-      });
-      if (!consentCheckbox.checked) {
-        isValid = false;
-        alert('Bitte stimmen Sie der Datennutzung zu.');
+    // Debounce helper
+    function debounce(fn, wait=200){
+      let t;
+      return (...args) => { clearTimeout(t); t = setTimeout(()=>fn(...args), wait) };
+    }
+
+    const updateBMI = debounce(() => {
+      bmiField.value = calculateBMIValue();
+      validateField('weight');
+      validateField('height');
+      updateGenerateButtonState();
+    }, 150);
+
+    // Simple per-field validation
+    function validateField(id) {
+      const el = document.getElementById(id);
+      const val = el.value?.toString().trim();
+      clearError(id);
+      if ((id === 'age' && (val === '' || isNaN(val) || +val < 0 || +val > 150))
+        || (id === 'height' && (val === '' || isNaN(val) || +val <= 0))
+        || (id === 'weight' && (val === '' || isNaN(val) || +val <= 0))
+        || ((id === 'scenario' || id === 'gender' || id === 'clothing') && val === '')
+      ) {
+        const msgMap = {
+          'age': 'Bitte geben Sie ein gültiges Alter ein (0–150).',
+          'height': 'Bitte geben Sie eine gültige Körpergröße in cm ein.',
+          'weight': 'Bitte geben Sie ein gültiges Gewicht in kg ein.',
+          'scenario': 'Bitte wählen Sie ein Szenario.',
+          'gender': 'Bitte wählen Sie ein Geschlecht.',
+          'clothing': 'Bitte wählen Sie die Kleidung.'
+        };
+        showError(id, msgMap[id] || 'Bitte ausfüllen.');
+        return false;
       }
-      return isValid;
+      return true;
     }
 
-    function generateQRCode() {
-      if (!validateForm()) return;
+    // Validate whole form
+    function validateForm() {
+      let ok = true;
+      for (const id of fields) {
+        const v = validateField(id);
+        if (!v) ok = false;
+      }
+      if (!consentCheckbox.checked) {
+        feedback.textContent = 'Bitte stimmen Sie der Datennutzung zu.';
+        ok = false;
+      } else {
+        feedback.textContent = '';
+      }
+      return ok;
+    }
 
-      updateBMI();
+    // Enable generate button only when required fields valid + consent
+    function updateGenerateButtonState() {
+      // quick checks (no DOM changes)
+      const quickOk = fields.every(id => {
+        const el = document.getElementById(id);
+        if (!el) return false;
+        const v = el.value?.toString().trim();
+        if (!v) return false;
+        if (id === 'age') {
+          const n = +v; return !isNaN(n) && n >= 0 && n <= 150;
+        }
+        if (id === 'height' || id === 'weight') {
+          const n = +v; return !isNaN(n) && n > 0;
+        }
+        return true;
+      }) && consentCheckbox.checked;
+      generateQRBtn.disabled = !quickOk;
+    }
 
+    // Responsive QR size: choose based on container width (max capped)
+    function getQRSize() {
+      const max = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--max-qrcode-size')) || 360;
+      // use 90% of right column width or max
+      const rightWidth = document.querySelector('.right')?.clientWidth || max;
+      const size = Math.min(max, Math.floor(rightWidth * 0.9));
+      return Math.max(120, size); // at least 120
+    }
+
+    // Create QR (recreate with proper size)
+    let qrInstance = null;
+    function renderQRCode(payload) {
+      // clear container
+      qrcodeContainer.innerHTML = '';
+      const size = getQRSize();
+      qrSizeNote.textContent = `QR-Code Größe: ${size}px`;
+      // create new element
+      const qrEl = document.createElement('div');
+      qrcodeContainer.appendChild(qrEl);
+      try {
+        qrInstance = new QRCode(qrEl, {
+          text: payload,
+          width: size,
+          height: size,
+          correctLevel: QRCode.CorrectLevel.M
+        });
+      } catch (e) {
+        qrcodeContainer.textContent = 'QR konnte nicht generiert werden.';
+        console.error(e);
+      }
+    }
+
+    // Build compressed payload
+    function buildPayload() {
       const data = {
         scenario: document.getElementById('scenario').value,
         alter: document.getElementById('age').value,
         geschlecht: document.getElementById('gender').value,
-        groesse: heightField.value,
-        gewicht: weightField.value,
+        groesse: document.getElementById('height').value,
+        gewicht: document.getElementById('weight').value,
         bmi: bmiField.value,
         kleidung: document.getElementById('clothing').value,
       };
-
-      qr.clear();
-      const compressed = LZString.compressToEncodedURIComponent(JSON.stringify(data));
-      qr.makeCode(compressed);
+      const json = JSON.stringify(data);
+      // compress and encode for QR safety
+      return LZString.compressToEncodedURIComponent(json);
     }
 
-    function resetForm() {
+    // Generate QR handler
+    function generateQRCodeHandler() {
+      if (!validateForm()) {
+        updateGenerateButtonState();
+        return;
+      }
+      // ensure BMI up to date
+      bmiField.value = calculateBMIValue();
+      const payload = buildPayload();
+      renderQRCode(payload);
+      feedback.textContent = 'QR-Code erzeugt — scannen zum Übertragen der anonymisierten Daten.';
+    }
+
+    // Reset handler
+    function resetHandler() {
       form.reset();
-      bmiField.value = "";
-      qr.clear();
+      bmiField.value = '';
+      qrcodeContainer.innerHTML = '';
+      feedback.textContent = '';
+      qrSizeNote.textContent = '';
       generateQRBtn.disabled = true;
-      document.querySelectorAll('.error').forEach(el => el.classList.remove('error'));
       document.querySelectorAll('.error-message').forEach(el => el.style.display = 'none');
+      document.querySelectorAll('.error').forEach(el => el.classList.remove('error'));
     }
 
-    // Event Listeners
-    heightField.addEventListener('input', updateBMI);
-    weightField.addEventListener('input', updateBMI);
-    generateQRBtn.addEventListener('click', generateQRCode);
-    document.getElementById('resetBtn').addEventListener('click', resetForm);
-
-    // Consent aktivieren
-    consentCheckbox.addEventListener('change', () => {
-      generateQRBtn.disabled = !consentCheckbox.checked;
+    // Listeners
+    ['age','height','weight','scenario','gender','clothing'].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener('input', () => {
+        if (id === 'height' || id === 'weight') updateBMI();
+        else {
+          validateField(id);
+          updateGenerateButtonState();
+        }
+      });
+      el.addEventListener('blur', () => { validateField(id); updateGenerateButtonState(); });
     });
 
+    consentCheckbox.addEventListener('change', () => {
+      updateGenerateButtonState();
+      feedback.textContent = '';
+    });
+
+    generateQRBtn.addEventListener('click', generateQRCodeHandler);
+    resetBtn.addEventListener('click', resetHandler);
+
+    // Re-render QR on orientation/resize to keep it crisp
+    window.addEventListener('resize', () => {
+      // if a QR exists, re-generate with new size
+      if (qrcodeContainer.firstChild && qrcodeContainer.firstChild.firstChild) {
+        // read current payload from the generated img/svg (if possible) -- easier: rebuild from form
+        const currentPayload = buildPayload();
+        renderQRCode(currentPayload);
+      }
+    });
+
+    // Accessibility: allow Enter to submit generate when focused inside form
+    form.addEventListener('submit', (e) => { e.preventDefault(); generateQRCodeHandler(); });
+
+    // initialize
+    updateGenerateButtonState();
   </script>
 </body>
 </html>
